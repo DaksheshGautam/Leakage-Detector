@@ -270,22 +270,42 @@ def detect_temporal_leakage(df, target_col, threshold=0.4):
     return None
 
 
-def print_report(findings, shape):               #Prints the final LeakGuard report.
+def print_report(findings, shape):
 
-    print(f"========== LeakGuard Report v{__version__} ==========")
+    print(f"\n🛡️ LeakGaurd Report (v{__version__})")
+    print("="*50)
     print(f"Dataset shape: {shape}\n")
     
     if not findings:
-        print("No leakage risks detected. Good job!")
+        print("✅ No leakage risks detected. Dataset looks safe.")
         return
 
+    severity_icon = {
+        "HIGH": "🚨",
+        "MEDIUM": "⚠️",
+        "LOW": "ℹ️"
+    }
+
     for finding in findings:
-        print(f"[{finding.severity}] {finding.title}")
-        print(f"  Risk: {finding.description}")
-        print(f"  Evidence: {finding.evidence}")
-        print("  Recommendations:")
-        for rec in finding.recommendation:
-            print(f"   - {rec}")
-        print("-" * 50 + "\n")
-    
-    print("End of Report.")
+        icon = severity_icon.get(finding.severity, "")
+
+        print(f"{icon} {finding.title}")
+        print(f"Severity: {finding.severity}")
+        print(f"{finding.description}")
+
+        if finding.evidence:
+            print("Evidence:")
+            if isinstance(finding.evidence, list):
+                for e in finding.evidence:
+                    print(f"  • {e}")
+            else:
+                print(f"  • {finding.evidence}")
+
+        if finding.recommendation:
+            print("Recommended actions:")
+            for rec in finding.recommendation:
+                print(f"  → {rec}")
+
+        print("-"*50)
+
+    print("End of Report.\n")
