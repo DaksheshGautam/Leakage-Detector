@@ -61,6 +61,7 @@ LeakGuard V1 provides:
 * Duplicate row detection
 * High correlation detection with target
 * Feature importance–based leakage detection
+* Temporal leakage detection
 * Structured console reporting
 
 The tool **flags suspicious features only** and does not automatically modify datasets.
@@ -128,6 +129,10 @@ Features exhibiting unusually high correlation with the target are flagged as po
 
 A lightweight RandomForest model is trained on internally split data. Features with unusually high importance are flagged as suspicious.
 
+### Temporal Leakage Detection
+
+Identifies potential datetime columns and checks if the dataset is sorted by time. A sorted dataset poses a risk for random train-test splits, which could cause the model to train on future data to predict the past.
+
 ---
 
 ## Example Output
@@ -148,6 +153,9 @@ High Correlation:
 
 High Importance:
 ['final_status']
+
+Temporal Leakage Risks:
+- Dataset is sorted by 'transaction_date' (Ascending) - Random splits may leak future info
 ```
 
 ---
@@ -187,7 +195,6 @@ Or run directly from notebook using the provided functions.
 
 * Risk scoring
 * Recommendations
-* Temporal leakage detection
 * UI interface
 * Automated feature removal
 * HTML reporting

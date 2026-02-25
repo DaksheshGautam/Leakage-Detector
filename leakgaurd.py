@@ -23,6 +23,7 @@ def run_leakguard(file_path, target_column):
     report['duplicates'] = detect_duplicates(df)
     report['high_correlation'] = detect_high_correlation(X, y)
     report['high_importance'] = detect_feature_importance_leakage(X, y)
+    report['temporal_leakage'] = detect_temporal_leakage(df)
     
     # 4. Generate Report
     print_report(report)
@@ -111,6 +112,46 @@ def detect_feature_importance_leakage(X, y, threshold=0.30):
     
     return high_importance_features
 
+def detect_temporal_leakage(df):
+    """
+    Detects potential temporal leakage risks by checking if the data 
+    is sorted by any datetime columns.
+    """
+    temporal_warnings = []
+    
+    # Identify potential datetime columns
+    # 1. Existing datetime dtypes
+    date_cols = df.select_dtypes(include=['datetime', 'datetimetz']).columns.tolist()
+    
+    # 2. Object columns that look like dates (heuristic based on name)
+    candidate_cols = [c for c in df.select_dtypes(include=['object']).columns 
+                      if any(x in c.lower() for x in ['date', 'time', 'year', 'month', 'day'])]
+    
+    for col in candidate_cols:
+        try:
+            # Check first few non-null values to see if they parse
+            sample = df[col].dropna().head(10)
+            if len(sample) > 0:
+                pd.to_datetime(sample, errors='raise')
+                date_cols.append(col)
+        except:
+            pass
+            
+    # Check monotonicity
+    for col in set(date_cols):
+        try:
+            series = pd.to_datetime(df[col], errors='coerce').dropna()
+            if len(series) < 2:
+                continue
+            if series.is_monotonic_increasing:
+                temporal_warnings.append(f"Dataset is sorted by '{col}' (Ascending) - Random splits may leak future info")
+            elif series.is_monotonic_decreasing:
+                temporal_warnings.append(f"Dataset is sorted by '{col}' (Descending) - Random splits may leak future info")
+        except:
+            continue
+            
+    return temporal_warnings
+
 def print_report(report):
     """
     Prints the final LeakGuard report.
@@ -132,5 +173,10 @@ def print_report(report):
     if report['high_importance']:
         print("High Importance Features (Potential Leakage):")
         print(report['high_importance'])
+        
+    if report.get('temporal_leakage'):
+        print("Temporal Leakage Risks:")
+        for warning in report['temporal_leakage']:
+            print(f"- {warning}")
         
     print("========== End of Report ==========")
