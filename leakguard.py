@@ -1,4 +1,4 @@
-__version__ = "0.3"
+__version__ = "0.4"
 
 import pandas as pd
 import numpy as np
@@ -24,15 +24,22 @@ def run_leakguard(file_path, target_column):        #Main function to run the Le
     df = pd.read_csv(file_path)
     
     # 2. Separate Target
+    if target_column not in df.columns:
+        raise ValueError(f"Target column '{target_column}' not found in dataset.")
+
     X = df.drop(columns=[target_column])
     y = df[target_column]
+
+    # Defensive check: Ensure target is not in X (e.g. due to duplicate columns)
+    while target_column in X.columns:
+        X = X.drop(columns=[target_column])
     
     # 3. Run Detectors
     if f := detect_identifiers(X): findings.append(f)
     if f := detect_duplicates(df): findings.append(f)
     if f := detect_group_leakage(df, target_column): findings.append(f)
-    if f := detect_high_correlation(X, y): findings.append(f)
-    if f := detect_feature_importance_leakage(X, y): findings.append(f)
+    if f := detect_high_correlation(X, y, target_column): findings.append(f)
+    if f := detect_feature_importance_leakage(X, y, target_column): findings.append(f)
     if f := detect_temporal_leakage(df, target_column): findings.append(f)
     
     # 4. Generate Report
@@ -46,6 +53,11 @@ def detect_identifiers(df, threshold=0.95):         #Detects columns that are li
     identifier_cols = []
     for col in df.columns:
         if df[col].nunique() / len(df) > threshold:
+            # New check: Exclude continuous float columns from being flagged as identifiers.
+            # True identifiers are typically integers or strings.
+            if pd.api.types.is_float_dtype(df[col]):
+                continue
+
             identifier_cols.append(col)
             
     if identifier_cols:
@@ -87,6 +99,10 @@ def detect_group_leakage(df, target_column, uniqueness_min=0.01, uniqueness_max=
     feature_cols = [col for col in df.columns if col != target_column]
 
     for col in feature_cols:
+        # Exclude float columns (likely continuous features, not identifiers)
+        if pd.api.types.is_float_dtype(df[col]):            # Exclude float columns since they typically represent continuous measurements
+            continue                                        # rather than entity identifiers
+
         # --- Step 1: Identify candidate grouping columns based on cardinality ---
         n_unique = df[col].nunique()
         n_total = len(df)
@@ -172,7 +188,7 @@ def detect_group_leakage(df, target_column, uniqueness_min=0.01, uniqueness_max=
         )
     return None
 
-def detect_high_correlation(X, y, threshold=0.8):           #Detects features with high correlation to the target.
+def detect_high_correlation(X, y, target_name=None, threshold=0.8):           #Detects features with high correlation to the target.
 
     y_numeric = y                               # Ensure y is numeric for correlation calculation
     if y.dtype == 'object':
@@ -181,7 +197,14 @@ def detect_high_correlation(X, y, threshold=0.8):           #Detects features wi
 
     
     df_corr = X.copy()                          # Combine features and target for correlation matrix  
+
+    # Defensive: Ensure target column is not in feature matrix
+    cols_to_drop = set()
+    if target_name: cols_to_drop.add(target_name)
+    if hasattr(y, 'name') and y.name: cols_to_drop.add(y.name)
     
+    df_corr = df_corr.drop(columns=[c for c in cols_to_drop if c in df_corr.columns], errors='ignore')
+
     for col in df_corr.columns:                 # Preprocess data: handle categorical features and NaNs
         if df_corr[col].dtype == 'object':
             df_corr[col] = df_corr[col].astype('category').cat.codes
@@ -199,14 +222,18 @@ def detect_high_correlation(X, y, threshold=0.8):           #Detects features wi
 
     
     high_corr_features = correlations[correlations > threshold]          # Filter high correlations (excluding target itself)
-    high_corr_features = high_corr_features.drop('target', errors='ignore')
+    
+    evidence = high_corr_features.index.tolist()
+    
+    # Final safety filter: Remove target-related names from evidence list
+    evidence = [f for f in evidence if f != 'target' and f not in cols_to_drop]
 
-    if not high_corr_features.empty:
+    if evidence:
         return Finding(
             title="High correlation with target",
             severity="HIGH",
             description="Features with extremely high correlation to the target may be proxies for the target itself (leakage).",
-            evidence=high_corr_features.index.tolist(),
+            evidence=evidence,
             recommendation=[
                 "Inspect these features manually",
                 "Remove if they are post-outcome variables"
@@ -215,10 +242,18 @@ def detect_high_correlation(X, y, threshold=0.8):           #Detects features wi
     return None
 
 
-def detect_feature_importance_leakage(X, y, threshold=0.30):            #Detects leakage using feature importance from a RandomForest model.
+def detect_feature_importance_leakage(X, y, target_name=None, threshold=0.30):            #Detects leakage using feature importance from a RandomForest model.
     
     
     X_processed = X.copy()                      # Preprocess data: handle categorical features and NaNs
+
+    # Defensive: Ensure target column is not in feature matrix
+    cols_to_drop = set()
+    if target_name: cols_to_drop.add(target_name)
+    if hasattr(y, 'name') and y.name: cols_to_drop.add(y.name)
+
+    X_processed = X_processed.drop(columns=[c for c in cols_to_drop if c in X_processed.columns], errors='ignore')
+
     for col in X_processed.columns:
         if X_processed[col].dtype == 'object':
             X_processed[col] = X_processed[col].astype('category').cat.codes
@@ -251,6 +286,9 @@ def detect_feature_importance_leakage(X, y, threshold=0.30):            #Detects
     
     high_importance_features = importances[importances > threshold].index.tolist()          # Filter high importance features
     
+    # Final safety filter: Remove target-related names from evidence list
+    high_importance_features = [f for f in high_importance_features if f not in cols_to_drop]
+
     if high_importance_features:
         return Finding(
             title="High feature importance detected",
