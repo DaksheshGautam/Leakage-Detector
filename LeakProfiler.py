@@ -1,4 +1,5 @@
 __version__ = "0.9.0"
+FUNC_NAME = "LeakProfiler"
 
 import argparse
 import importlib
@@ -30,14 +31,14 @@ class Finding:
     recommendation: List[str]
 
 
-def run_leakguard(
+def run_leakprofiler(
     file_path,
     target_column,
     json_output_path=None,
     json_stdout=False,
     return_payload=False,
     show_export_button=False,
-    export_button_path="leakguard_report.json"
+    export_button_path="leakprofiler_report.json"
 ):
     findings = []
 
@@ -67,7 +68,7 @@ def run_leakguard(
     ]
 
     with Progress(transient=True) as progress:
-        task = progress.add_task("[cyan]Running LeakGuard detectors...", total=len(detectors))
+        task = progress.add_task(f"[cyan]Running {FUNC_NAME} detectors...", total=len(detectors))
 
         for name, func, args in detectors:
             progress.update(task, description=f"[cyan]Running: {name}")
@@ -101,6 +102,26 @@ def run_leakguard(
 
     if return_payload:
         return payload
+
+
+def run_leakguard(
+    file_path,
+    target_column,
+    json_output_path=None,
+    json_stdout=False,
+    return_payload=False,
+    show_export_button=False,
+    export_button_path="leakprofiler_report.json"
+):
+    return run_leakprofiler(
+        file_path=file_path,
+        target_column=target_column,
+        json_output_path=json_output_path,
+        json_stdout=json_stdout,
+        return_payload=return_payload,
+        show_export_button=show_export_button,
+        export_button_path=export_button_path,
+    )
 
 
 def _render_notebook_export_button(payload, export_button_path, console):
@@ -765,7 +786,7 @@ def detect_temporal_leakage(df, target_col, threshold=0.4):
 
 
 def render_report(findings, shape):
-    title = Text(f"LeakGuard v{__version__}", style="bold cyan", justify="center")
+    title = Text(f"{FUNC_NAME} v{__version__}", style="bold cyan", justify="center")
     shape_text = Text(f"Dataset Shape: {shape}", justify="center")
 
     if not findings:
@@ -841,7 +862,7 @@ Analysis Confidence : {advice['confidence']['level']} ({advice['confidence']['sc
 Analysis Stability  : {stability_display_text}
 """
 
-    dashboard = Panel(dashboard_text, title="LEAKGUARD DASHBOARD", border_style="green", title_align="center")
+    dashboard = Panel(dashboard_text, title=f"{FUNC_NAME.upper()} DASHBOARD", border_style="green", title_align="center")
 
     advice_text = f"""
 Recommended Split  : [bold]{advice['splitting_strategy']}[/bold]
@@ -911,7 +932,7 @@ def build_json_export_payload(file_path, target_column, shape, findings, advice)
 
 
 def _parse_args():
-    parser = argparse.ArgumentParser(description="LeakGuard data leakage scanner")
+    parser = argparse.ArgumentParser(description=f"{FUNC_NAME} data leakage scanner")
     parser.add_argument("--file", required=True, help="Path to CSV dataset")
     parser.add_argument("--target", required=True, help="Target column name")
     parser.add_argument("--json", action="store_true", help="Print JSON export to stdout")
@@ -921,7 +942,7 @@ def _parse_args():
 
 if __name__ == "__main__":
     args = _parse_args()
-    run_leakguard(
+    run_leakprofiler(
         file_path=args.file,
         target_column=args.target,
         json_output_path=args.json_path,

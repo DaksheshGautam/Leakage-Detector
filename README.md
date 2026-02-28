@@ -1,10 +1,10 @@
 ## Overview
 
-**LeakGuard** is a lightweight inspection tool designed to detect potential data leakage risks in machine learning datasets **before model training**.
+**LeakProfiler** is a lightweight inspection tool designed to detect potential data leakage risks in machine learning datasets **before model training**.
 
 The system acts as a **pre-model safety scanner**, analyzing features and identifying suspicious columns that may artificially inflate model performance.
 
-LeakGuard does **not** perform data cleaning, feature engineering, or modeling. Its sole responsibility is to detect leakage patterns and generate warnings to support safer ML workflows.
+LeakProfiler does **not** perform data cleaning, feature engineering, or modeling. Its sole responsibility is to detect leakage patterns and generate warnings to support safer ML workflows.
 
 ---
 
@@ -31,7 +31,7 @@ LeakGuard does **not** perform data cleaning, feature engineering, or modeling. 
 
 ## Cross-Detector Reasoning
 
-After individual detectors run, LeakGuard performs a second-pass inference step to identify multi-signal risks.
+After individual detectors run, LeakProfiler performs a second-pass inference step to identify multi-signal risks.
 
 Current cross-detector rules include:
 
@@ -66,38 +66,40 @@ pip install ipywidgets ipython
 ## Usage
 
 ```python
-from leakguard import run_leakguard
+from LeakProfiler import run_leakprofiler
 
-run_leakguard("dataset.csv", target_column="TargetColumn")
+run_leakprofiler("dataset.csv", target_column="TargetColumn")
 
 # Print JSON to stdout
-run_leakguard("dataset.csv", target_column="TargetColumn", json_stdout=True)
+run_leakprofiler("dataset.csv", target_column="TargetColumn", json_stdout=True)
 
 # Write JSON to file
-run_leakguard("dataset.csv", target_column="TargetColumn", json_output_path="leakguard_report.json")
+run_leakprofiler("dataset.csv", target_column="TargetColumn", json_output_path="leakprofiler_report.json")
 
 # Return payload as dict
-payload = run_leakguard("dataset.csv", target_column="TargetColumn", return_payload=True)
+payload = run_leakprofiler("dataset.csv", target_column="TargetColumn", return_payload=True)
 
 # Show export button in a notebook
-run_leakguard(
+run_leakprofiler(
     "dataset.csv",
     target_column="TargetColumn",
     show_export_button=True,
-    export_button_path="leakguard_report.json"
+    export_button_path="leakprofiler_report.json"
 )
+
+# Backward compatibility: importing from `leakguard` and calling `run_leakguard(...)` is still supported.
 ```
 
 CLI usage:
 
 ```bash
-python leakguard.py --file dataset.csv --target TargetColumn --json
-python leakguard.py --file dataset.csv --target TargetColumn --json-path leakguard_report.json
+python LeakProfiler.py --file dataset.csv --target TargetColumn --json
+python LeakProfiler.py --file dataset.csv --target TargetColumn --json-path leakprofiler_report.json
 ```
 
 ---
 
-## `run_leakguard` Parameters
+## `run_leakprofiler` Parameters
 
 * `file_path` *(str, required)*: CSV path.
 * `target_column` *(str, required)*: target column name.
@@ -111,7 +113,7 @@ python leakguard.py --file dataset.csv --target TargetColumn --json-path leakgua
 
 ## Project Objective
 
-LeakGuard demonstrates understanding of:
+LeakProfiler demonstrates understanding of:
 
 * Data leakage failure modes in machine learning.
 * Structural and statistical dataset analysis.
