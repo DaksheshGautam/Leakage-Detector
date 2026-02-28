@@ -1,4 +1,3 @@
-
 ## Overview
 
 **LeakGuard** is a lightweight inspection tool designed to detect potential data leakage risks in machine learning datasets **before model training**.
@@ -9,170 +8,23 @@ LeakGuard does **not** perform data cleaning, feature engineering, or modeling. 
 
 ---
 
-## Problem Statement
+## Features (Version 0.8.0)
 
-Machine learning models often achieve unrealistically high performance due to **data leakage**, where features contain information unavailable at prediction time.
-
-Common leakage sources include:
-
-* Post-outcome variables
-* Identifier columns
-* Duplicate samples
-* Strong proxy features correlated with target
-* Overly predictive engineered attributes
-
-These issues are frequently overlooked and lead to models that fail in production.
-
-LeakGuard aims to automatically surface statistical signals of such risks.
-
----
-
-## Position in ML Pipeline
-
-LeakGuard operates after basic dataset cleaning but before modeling.
-
-```
-Raw Data
-   ↓
-Basic Cleaning (User)
-   ↓
-🚨 LeakGuard Scan
-   ↓
-Train-Test Split
-   ↓
-Feature Engineering
-   ↓
-Model Training
-```
-
-LeakGuard functions as a **safety gate** within the ML pipeline.
-
----
-
-## Features
-
-LeakGuard v0.6.0 provides:
-
-* Dataset loading
-* Target separation
-* Column structural profiling
-* Automatic column type detection
-* Identifier column detection
-* Duplicate row detection
-* Group leakage detection (e.g., entity overlap)
-* High correlation detection with target
-* Feature importance–based leakage detection
-* Temporal leakage detection
-* Structured console reporting
-* **Advisory System**: Provides a risk score, recommended splitting strategy, and dataset tips.
-* Adaptive risk scoring that adjusts based on dataset size
-
-The tool **flags suspicious features only** and does not automatically modify datasets.
-
----
-
-## Input Design
-
-User provides:
-
-* Dataset file path
-* Target column name
-
-LeakGuard internally:
-
-* Separates features and target
-* Performs dataset analysis
-* Executes a lightweight internal train-test split only for feature importance inspection
-
----
-
-## System Architecture
-
-LeakGuard follows a modular inspection pipeline:
-
-### Input & Preparation
-
-* Load dataset
-* Separate target
-
-### Dataset Understanding
-
-* Column profiling
-* Column type detection
-
-### Detection Engines
-
-* Identifier detector
-* Group leakage detector
-* Duplicate detector
-* Correlation detector
-* Feature importance detector
-
-### Reporting
-
-* Aggregate findings
-* Generate readable report
-* Provide advisory recommendations
-
----
-
-## Detection Logic
-
-### Identifier Detection
-
-Columns with extremely high uniqueness ratios are flagged as potential identifiers that may cause memorization.
-
-### Duplicate Detection
-
-Duplicate rows are detected as they can artificially inflate model performance.
-
-### Group Leakage Detection
-
-Detects if the dataset contains groups (e.g., User IDs) that appear across multiple rows. If these groups have highly consistent targets or constant features, splitting them randomly can lead to leakage (entity leakage).
-
-### Correlation Detection
-
-Features exhibiting unusually high correlation with the target are flagged as possible leakage proxies.
-
-### Feature Importance Detection
-
-A lightweight RandomForest model is trained on internally split data. Features with unusually high importance are flagged as suspicious.
-
-### Temporal Leakage Detection
-
-Identifies potential datetime columns and checks for signals like high target autocorrelation, regular time spacing, or high timestamp uniqueness. These indicate time-dependence, meaning random splits could leak future information into the training set.
-
----
-
-## Example Output
-
-```
-========== LeakGuard Report ==========
-
-Dataset shape: (10000, 18)
-
-Identifier Risk:
-['transaction_id']
-
-Duplicates:
-12
-
-High Correlation:
-['missed_payments']
-
-High Importance:
-['final_status']
-
-Temporal Leakage Risks:
-- High Target Autocorrelation (0.85) when sorted by 'transaction_date'. Data is time-dependent; use TimeSeriesSplit instead of random split.
-
-========== Advisory ==========
-Leakage Risk Score: 12
-Recommended Splitting Strategy: TimeSeriesSplit
-- High risk of data leakage. Manual inspection of features is highly recommended.
-- Remove identifier columns before training.
-- Investigate high-correlation features.
-```
+*   **Dataset Loading & Profiling**: Ingests a CSV and profiles its structure.
+*   **Leakage Detectors**:
+    *   Identifier Column Detection
+    *   Duplicate Row Detection
+    *   Group Leakage Detection
+    *   Temporal Leakage Detection
+    *   High Correlation Detection with Target
+    *   High Feature Importance Detection
+*   **Rich Reporting**: Color-coded findings summary and dashboard.
+*   **Analysis Confidence**: High/Medium/Low score with percentage.
+*   **Analysis Stability**: Warns for very small datasets and high-dimensional instability.
+*   **Validation Advisory**: Recommends split strategy (`TimeSeriesSplit`, `GroupKFold`, or standard split).
+*   **Next Actions Checklist**: Deduplicated, priority-based (`P1/P2/P3`) checklist with reasons.
+*   **JSON Export**: Export report + checklist to stdout, file, or Python payload.
+*   **Notebook Export Button (Optional)**: In-notebook button to export JSON.
 
 ---
 
@@ -182,6 +34,12 @@ Recommended Splitting Strategy: TimeSeriesSplit
 pip install -r requirements.txt
 ```
 
+Optional notebook UI dependencies (only needed for `show_export_button=True`):
+
+```bash
+pip install ipywidgets ipython
+```
+
 ---
 
 ## Usage
@@ -189,17 +47,44 @@ pip install -r requirements.txt
 ```python
 from leakguard import run_leakguard
 
-run_leakguard("dataset.csv", target="TargetColumn")
+run_leakguard("dataset.csv", target_column="TargetColumn")
+
+# Print JSON to stdout
+run_leakguard("dataset.csv", target_column="TargetColumn", json_stdout=True)
+
+# Write JSON to file
+run_leakguard("dataset.csv", target_column="TargetColumn", json_output_path="leakguard_report.json")
+
+# Return payload as dict
+payload = run_leakguard("dataset.csv", target_column="TargetColumn", return_payload=True)
+
+# Show export button in a notebook
+run_leakguard(
+    "dataset.csv",
+    target_column="TargetColumn",
+    show_export_button=True,
+    export_button_path="leakguard_report.json"
+)
 ```
 
-Or run directly from notebook using the provided functions.
+CLI usage:
 
+```bash
+python leakguard.py --file dataset.csv --target TargetColumn --json
+python leakguard.py --file dataset.csv --target TargetColumn --json-path leakguard_report.json
+```
 
-## Future Work
+---
 
-* UI interface
-* Automated feature removal
-* HTML reporting
+## `run_leakguard` Parameters
+
+* `file_path` *(str, required)*: CSV path.
+* `target_column` *(str, required)*: target column name.
+* `json_output_path` *(str, optional)*: write JSON report to file.
+* `json_stdout` *(bool, optional)*: print JSON report to stdout.
+* `return_payload` *(bool, optional)*: return JSON payload as a Python dict.
+* `show_export_button` *(bool, optional)*: show Jupyter export button under output.
+* `export_button_path` *(str, optional)*: output file path used by export button.
 
 ---
 
@@ -207,9 +92,7 @@ Or run directly from notebook using the provided functions.
 
 LeakGuard demonstrates understanding of:
 
-* Data leakage failure modes
-* Dataset structural analysis
-* ML pipeline safety practices
-* Modular engineering design
-
-The project serves as a portfolio artifact showcasing **data-centric machine learning awareness**.
+* Data leakage failure modes in machine learning.
+* Structural and statistical dataset analysis.
+* Data-centric ML safety practices.
+* Modular and clear engineering design.
