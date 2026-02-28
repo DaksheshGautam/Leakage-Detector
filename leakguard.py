@@ -1,4 +1,4 @@
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 import pandas as pd
 import numpy as np
@@ -21,7 +21,7 @@ def run_leakguard(file_path, target_column):        #Main function to run the Le
     findings = []
     
     # 1. Load Data
-    df = pd.read_csv(file_path)
+    df = pd.read_csv(file_path, parse_dates=['timestamp'])
     
     # 2. Separate Target
     if target_column not in df.columns:
@@ -44,6 +44,49 @@ def run_leakguard(file_path, target_column):        #Main function to run the Le
     
     # 4. Generate Report
     print_report(findings, df.shape)
+
+    # 5. Get overall advice
+    advice = advisory_logic(findings)
+    print_advice(advice)
+
+def advisory_logic(findings):
+    
+    severity_weights = {
+        "LOW": 1,
+        "MEDIUM": 3,
+        "HIGH": 5
+    }
+
+    total_score = 0
+    for finding in findings:
+        total_score += severity_weights.get(finding.severity, 0)
+
+    advice = {
+        "splitting_strategy": "Standard (e.g., StratifiedKFold)",
+        "dataset_tips": [],
+        "leakage_score": total_score
+    }
+
+    has_temporal = any(f.title == "Temporal leakage risk" for f in findings)
+    has_group = any(f.title == "Group leakage risk detected" for f in findings)
+
+    if has_temporal:
+        advice["splitting_strategy"] = "TimeSeriesSplit"
+    elif has_group:
+        advice["splitting_strategy"] = "GroupKFold"
+    
+    if total_score > 10:
+        advice["dataset_tips"].append("High risk of data leakage. Manual inspection of features is highly recommended.")
+    elif total_score >= 5:
+        advice["dataset_tips"].append("Moderate risk of data leakage. Review the findings and apply recommended actions.")
+    else:
+        advice["dataset_tips"].append("Low risk of data leakage, but it's good practice to review the findings.")
+
+    if not findings:
+        advice["dataset_tips"] = ["No leakage risks detected. Dataset looks safe for standard modeling."]
+
+    return advice
+
 
 def detect_identifiers(df, threshold=None):         #Detects columns that are likely identifiers based on uniqueness.
     
@@ -266,7 +309,9 @@ def detect_feature_importance_leakage(X, y, target_name=None, threshold=None):  
     X_processed = X_processed.drop(columns=[c for c in cols_to_drop if c in X_processed.columns], errors='ignore')
 
     for col in X_processed.columns:
-        if X_processed[col].dtype == 'object':
+        if pd.api.types.is_datetime64_any_dtype(X_processed[col]):
+            X_processed[col] = X_processed[col].astype(np.int64) // 10**9
+        elif X_processed[col].dtype == 'object':
             X_processed[col] = X_processed[col].astype('category').cat.codes
         
         if X_processed[col].isnull().any():                 # Handle missing values
@@ -433,9 +478,19 @@ def detect_temporal_leakage(df, target_col, threshold=0.4):
     return None
 
 
+def print_advice(advice):
+    print("\nAdvisory")
+    print("="*50)
+    print(f"Leakage Risk Score: {advice['leakage_score']}")
+    print(f"Recommended Splitting Strategy: {advice['splitting_strategy']}")
+    for tip in advice['dataset_tips']:
+        print(f"• {tip}")
+    print("="*50)
+
+
 def print_report(findings, shape):
 
-    print(f"\n🛡️ LeakGuard Report (v{__version__})")
+    print(f"\nLeakGuard Report (v{__version__})")
     print("="*50)
     print(f"Dataset shape: {shape}\n")
     
@@ -444,9 +499,9 @@ def print_report(findings, shape):
         return
 
     severity_icon = {
-        "HIGH": "🚨",
-        "MEDIUM": "⚠️",
-        "LOW": "ℹ️"
+        "HIGH": "HIGH",
+        "MEDIUM": "MEDIUM",
+        "LOW": "LOW"
     }
 
     for finding in findings:
@@ -467,7 +522,7 @@ def print_report(findings, shape):
         if finding.recommendation:
             print("Recommended actions:")
             for rec in finding.recommendation:
-                print(f"  → {rec}")
+                print(f"  -> {rec}")
 
         print("-"*50)
 
