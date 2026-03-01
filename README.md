@@ -1,209 +1,212 @@
-## Overview
+# LeakProfiler
 
-**LeakProfiler** is a lightweight inspection tool designed to detect potential data leakage risks in machine learning datasets **before model training**.
+Pre-model data leakage scanner for machine learning datasets.
 
-The system acts as a **pre-model safety scanner**, analyzing features and identifying suspicious columns that may artificially inflate model performance.
-
-LeakProfiler does **not** perform data cleaning, feature engineering, or modeling. Its sole responsibility is to detect leakage patterns and generate warnings to support safer ML workflows.
+LeakProfiler inspects a dataset before training and flags structural/statistical leakage patterns that can inflate model performance. It does not train models, clean data, or do feature engineering—it focuses on leakage risk discovery, explainable risk scoring, and actionable validation guidance.
 
 ---
 
-## Features (Version 1.0.0a1 - Alpha)
+## Release Status
 
-*   **Dataset Loading & Profiling**: Ingests a CSV and profiles its structure.
-*   **Leakage Detectors**:
-    *   Identifier Column Detection
-    *   Duplicate Row Detection
-    *   Group Leakage Detection
-    *   Temporal Leakage Detection
-    *   High Correlation Detection with Target
-    *   High Feature Importance Detection
-*   **Rich Reporting**: Color-coded findings summary and dashboard.
-*   **Analysis Confidence**: High/Medium/Low score with percentage.
-*   **Analysis Stability**: Warns for very small datasets and high-dimensional instability.
-*   **Validation Advisory**: Recommends split strategy (`TimeSeriesSplit`, `GroupKFold`, or standard split).
-*   **Next Actions Checklist**: Deduplicated, priority-based (`P1/P2/P3`) checklist with reasons.
-*   **Cross-Detector Reasoning**: Adds composite findings by combining evidence across detectors (reported as `Cross-Detector` category).
-*   **Benign Pattern Detection**: Adds conservative, explainable low-risk contextual findings (`Benign-Pattern`) for likely non-leakage signals.
-*   **Principled Advisory Engine**: Uses calibrated evidence scoring, overlap de-duplication, uncertainty estimation, and explainable rationale.
-*   **Config-Driven Advisory Weights**: Advisory scoring uses explicit, tunable config for severity/category weights, thresholds, bonuses, and penalties.
-*   **Per-Finding Confidence**: Each finding gets a confidence estimate that influences contribution to overall risk.
-*   **JSON Export**: Export report + checklist to stdout, file, or Python payload.
-*   **Notebook Export Button (Optional)**: In-notebook button to export JSON.
+**Current release:** `1.0.0a1` (**Alpha**)
+
+This alpha is production-installable from PyPI, but scoring policy and heuristics may still evolve based on early feedback.
 
 ---
 
-## Cross-Detector Reasoning
+## What It Detects
 
-After individual detectors run, LeakProfiler performs a second-pass inference step to identify multi-signal risks.
+### Core detectors
+- Identifier column leakage
+- Duplicate row leakage risk
+- Group leakage risk
+- Temporal leakage risk
+- High feature-target correlation risk
+- High feature importance leakage signals
 
-Current cross-detector rules include:
+### Reasoning layers
+- **Cross-detector reasoning** for multi-signal leakage consensus
+- **Benign-pattern detection** for conservative low-risk context (additive only)
 
-* Correlation + Feature Importance overlap on the same feature → **Cross-detector proxy leakage consensus**.
-* Identifier + Group Leakage overlap on the same column/entity key → **Cross-detector entity memorization risk**.
-* Temporal signals + highly predictive feature overlap → **Cross-detector temporal proxy risk**.
-* Unstable analysis conditions + strong statistical findings → **Cross-detector confidence caution**.
-
-These composite findings are integrated into:
-
-* Findings summary table
-* Risk score/dashboard
-* Validation advisory and checklist
-* JSON export payload
-
----
-
-## Benign Pattern Detection
-
-After base detectors and cross-detector reasoning, LeakProfiler runs a conservative benign-pattern pass to identify signals that may look suspicious statistically but are often operationally normal.
-
-Design principles:
-
-* **Do not suppress risk findings**: benign findings are additive context, not replacements.
-* **Exclude from risk score**: `Benign-Pattern` findings are not counted in leakage severity totals.
-* **Conservative edge-case handling**: benign tags are blocked when strong corroborating risk signals exist.
-
-Current benign rules (tuned):
-
-* **Sparse duplicate noise**: duplicate ratio must be extremely small (adaptive threshold by dataset size).
-* **Isolated strong predictor**: allowed only when no corroborating correlation/group/temporal/identifier risk exists, with stable + high-confidence analysis and no HIGH-severity findings.
-* **Weak temporal structure**: only moderate temporal signal without high autocorrelation, regular spacing, high timestamp uniqueness, group risk, or temporal cross-detector overlap.
-
-Output behavior:
-
-* Dashboard now includes a `Benign Findings` count.
-* Benign findings appear in the findings table as category `Benign-Pattern`.
-* JSON summary includes `benign_findings`.
-
----
-
-## Principled Advisory Engine
-
-LeakProfiler separates risk estimation from action recommendation:
-
-* **Risk estimation** uses weighted evidence from findings (severity + category + per-finding confidence), then applies:
-    * corroboration bonus when multiple independent signals align,
-    * overlap penalties to reduce double-counting between correlated detectors.
-* **Configuration-driven policy** keeps thresholds and weights explicit and tunable.
-* **Strict HIGH gate**: `HIGH` risk is only emitted when corroboration and confidence gates both pass; otherwise it is downgraded to `MODERATE`.
-* **Uncertainty estimation** combines confidence level, analysis stability, and evidence sufficiency.
-* **Action recommendation** builds a deduplicated checklist from actionable findings only.
-
-Explainability outputs:
-
-* Dashboard includes `Risk Level` and `Advisory Uncertainty`.
-* Advisory panel includes an `Advisory Basis` section with top contributors, bonuses/penalties, and calibrated score.
-* JSON summary includes `risk_level`, `uncertainty`, and `risk_rationale`.
+### Advisory engine
+- Calibrated risk scoring (weighted by severity/category/confidence)
+- Overlap de-duplication to reduce double-counting
+- Advisory uncertainty estimation
+- **Strict HIGH gate**: `HIGH` is emitted only when corroboration + confidence both pass
+- Priority-based next-actions checklist (`P1/P2/P3`)
 
 ---
 
 ## Installation
 
+### Option A: Install from PyPI (recommended)
+
 ```bash
-pip install -r requirements.txt
+pip install leakprofiler==1.0.0a1
 ```
 
-Optional notebook UI dependencies (only needed for `show_export_button=True`):
+### Option B: Local development install
 
 ```bash
-pip install ipywidgets ipython
+pip install -e .
 ```
 
-Install from PyPI (after publish):
+Optional notebook extras:
 
 ```bash
-pip install leakprofiler
+pip install "leakprofiler[notebook]"
 ```
 
 ---
 
-## Distribution (PyPI)
+## Quick Start
 
-Build artifacts:
-
-```bash
-python -m pip install --upgrade build twine
-python -m build
-```
-
-Validate package metadata:
+### CLI (installed package)
 
 ```bash
-python -m twine check dist/*
+leakprofiler --file dataset.csv --target TargetColumn
+leakprofiler --file dataset.csv --target TargetColumn --json
+leakprofiler --file dataset.csv --target TargetColumn --json-path leakprofiler_report.json
 ```
 
-Upload to TestPyPI:
+### CLI (from source tree)
 
 ```bash
-python -m twine upload --repository testpypi dist/*
+python src/LeakProfiler.py --file dataset.csv --target TargetColumn --json
 ```
 
-Upload to PyPI:
-
-```bash
-python -m twine upload dist/*
-```
-
-The package exposes:
-
-* CLI command: `leakprofiler`
-* Python API: `from LeakProfiler import run_leakprofiler`
-
----
-
-## Usage
+### Python API
 
 ```python
 from LeakProfiler import run_leakprofiler
 
 run_leakprofiler("dataset.csv", target_column="TargetColumn")
 
-# Print JSON to stdout
+# JSON to stdout
 run_leakprofiler("dataset.csv", target_column="TargetColumn", json_stdout=True)
 
-# Write JSON to file
-run_leakprofiler("dataset.csv", target_column="TargetColumn", json_output_path="leakprofiler_report.json")
+# JSON to file
+run_leakprofiler(
+    "dataset.csv",
+    target_column="TargetColumn",
+    json_output_path="leakprofiler_report.json"
+)
 
-# Return payload as dict
-payload = run_leakprofiler("dataset.csv", target_column="TargetColumn", return_payload=True)
+# Return payload dict
+payload = run_leakprofiler(
+    "dataset.csv",
+    target_column="TargetColumn",
+    return_payload=True
+)
 
-# Show export button in a notebook
+# Notebook export button
 run_leakprofiler(
     "dataset.csv",
     target_column="TargetColumn",
     show_export_button=True,
     export_button_path="leakprofiler_report.json"
 )
-
-# Backward compatibility: importing from `leakguard` and calling `run_leakguard(...)` is still supported.
 ```
 
-CLI usage:
+Backward-compatible alias is still available:
 
-```bash
-python LeakProfiler.py --file dataset.csv --target TargetColumn --json
-python LeakProfiler.py --file dataset.csv --target TargetColumn --json-path leakprofiler_report.json
+```python
+from LeakProfiler import run_leakguard
 ```
+
+---
+
+## Output Summary
+
+LeakProfiler renders:
+- Findings summary table
+- Dashboard (risk score, risk level, confidence, stability, uncertainty)
+- Validation advisory panel
+- Advisory basis rationale (top contributors, penalties/bonuses, gate status)
+- Next-actions checklist
+
+JSON export includes:
+- Input metadata
+- Findings list
+- Severity counts and benign count
+- Risk score, risk level, uncertainty
+- Risk rationale and next actions
+
+---
+
+## Detection Design Notes
+
+### Cross-detector reasoning
+Combines independent signals to produce composite findings such as:
+- Correlation + importance overlap → proxy leakage consensus
+- Identifier + group overlap → entity memorization risk
+- Temporal + predictive overlap → temporal proxy risk
+- Unstable analysis + strong statistical findings → confidence caution
+
+### Benign-pattern detection
+- Adds context; **does not suppress** risk findings
+- Excluded from risk severity totals
+- Conservatively blocked when stronger corroborating risk signals exist
 
 ---
 
 ## `run_leakprofiler` Parameters
 
-* `file_path` *(str, required)*: CSV path.
-* `target_column` *(str, required)*: target column name.
-* `json_output_path` *(str, optional)*: write JSON report to file.
-* `json_stdout` *(bool, optional)*: print JSON report to stdout.
-* `return_payload` *(bool, optional)*: return JSON payload as a Python dict.
-* `show_export_button` *(bool, optional)*: show Jupyter export button under output.
-* `export_button_path` *(str, optional)*: output file path used by export button.
+- `file_path` *(str, required)*: CSV path.
+- `target_column` *(str, required)*: target column name.
+- `json_output_path` *(str, optional)*: write JSON to file.
+- `json_stdout` *(bool, optional)*: print JSON to stdout.
+- `return_payload` *(bool, optional)*: return JSON payload as `dict`.
+- `show_export_button` *(bool, optional)*: show notebook export button.
+- `export_button_path` *(str, optional)*: export path used by notebook button.
+
+---
+
+## Development
+
+### Run tests
+
+```bash
+pytest -q src/test_advisory_engine.py
+```
+
+### Build package
+
+```bash
+python -m pip install --upgrade build twine
+python -m build
+python -m twine check dist/*
+```
+
+---
+
+## Maintainer: Publish Flow
+
+### TestPyPI
+
+```bash
+python -m twine upload --repository testpypi dist/leakprofiler-1.0.0a1*
+```
+
+### PyPI
+
+```bash
+python -m twine upload dist/leakprofiler-1.0.0a1*
+```
+
+### Tag suggestion
+
+```bash
+git tag -a v1.0.0-alpha.1 -m "LeakProfiler 1.0.0 alpha 1"
+git push origin v1.0.0-alpha.1
+```
 
 ---
 
 ## Project Objective
 
-LeakProfiler demonstrates understanding of:
-
-* Data leakage failure modes in machine learning.
-* Structural and statistical dataset analysis.
-* Data-centric ML safety practices.
-* Modular and clear engineering design.
+LeakProfiler demonstrates practical, data-centric ML safety engineering:
+- leakage-first dataset inspection,
+- explainable risk diagnostics,
+- conservative false-positive controls,
+- and actionable validation guidance before model training.
