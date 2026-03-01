@@ -8,7 +8,7 @@ LeakProfiler does **not** perform data cleaning, feature engineering, or modelin
 
 ---
 
-## Features (Version 0.11.0)
+## Features (Version 1.0.0a1 - Alpha)
 
 *   **Dataset Loading & Profiling**: Ingests a CSV and profiles its structure.
 *   **Leakage Detectors**:
@@ -108,6 +108,46 @@ Optional notebook UI dependencies (only needed for `show_export_button=True`):
 ```bash
 pip install ipywidgets ipython
 ```
+
+Install from PyPI (after publish):
+
+```bash
+pip install leakprofiler
+```
+
+---
+
+## Distribution (PyPI)
+
+Build artifacts:
+
+```bash
+python -m pip install --upgrade build twine
+python -m build
+```
+
+Validate package metadata:
+
+```bash
+python -m twine check dist/*
+```
+
+Upload to TestPyPI:
+
+```bash
+python -m twine upload --repository testpypi dist/*
+```
+
+Upload to PyPI:
+
+```bash
+python -m twine upload dist/*
+```
+
+The package exposes:
+
+* CLI command: `leakprofiler`
+* Python API: `from LeakProfiler import run_leakprofiler`
 
 ---
 

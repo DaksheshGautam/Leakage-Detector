@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "leakprofiler"
+version = "1.0.0a1"
+description = "Pre-model data leakage scanner for ML datasets"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "LicenseRef-Proprietary"
+authors = [
+  { name = "LeakProfiler Contributors" }
+]
+keywords = ["machine-learning", "data-leakage", "mlops", "dataset-validation"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Operating System :: OS Independent",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence"
+]
+dependencies = [
+  "pandas",
+  "numpy",
+  "scikit-learn",
+  "rich"
+]
+
+[project.optional-dependencies]
+notebook = [
+  "ipython",
+  "ipywidgets"
+]
+dev = [
+  "pytest",
+  "build",
+  "twine"
+]
+
+[project.scripts]
+leakprofiler = "LeakProfiler:main"
+
+[tool.setuptools]
+py-modules = ["LeakProfiler"]

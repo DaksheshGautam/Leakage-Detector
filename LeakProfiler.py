@@ -1,4 +1,4 @@
-__version__ = "0.12.0"
+__version__ = "1.0.0a1"
 FUNC_NAME = "LeakProfiler"
 
 ADVISORY_CONFIG = {
@@ -1107,7 +1107,7 @@ def render_report(findings, shape):
             Rule(),
             shape_text,
             "\n",
-            Text("✅ No leakage risks detected.", style="green", justify="center")
+            Text(" No leakage risks detected.", style="green", justify="center")
         )
 
     severity_colors = {
@@ -1264,7 +1264,7 @@ def _parse_args():
     return parser.parse_args()
 
 
-if __name__ == "__main__":
+def main():
     args = _parse_args()
     run_leakprofiler(
         file_path=args.file,
@@ -1272,3 +1272,7 @@ if __name__ == "__main__":
         json_output_path=args.json_path,
         json_stdout=args.json
     )
+
+
+if __name__ == "__main__":
+    main()

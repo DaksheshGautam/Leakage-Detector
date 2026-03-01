@@ -1,3 +1,6 @@
 GEMINI.md
 __pycache__
 .pytest_cache
+.venv
+leakprofiler.egg-info
+dist
