@@ -8,11 +8,13 @@ LeakProfiler inspects a dataset before training and flags structural/statistical
 
 ## Release Status
 
-**Current release:** `1.0.1` (**Stable**)
+**Current release:** `1.0.2` (**Stable**)
 
 This stable release is validated for broad dataset inspection workflows and packaged for standard PyPI installation.
 
-### What changed in 1.0.1
+### What changed in 1.0.2
+- Added robust target-missing handling: rows with missing target values are automatically dropped and reported in dataset tips.
+- Added explicit validation error when the target column is entirely missing after filtering.
 - Added a conservative risk floor so strong group/proxy leakage signals are not under-classified as `LOW`.
 - Fixed correlation threshold calibration to reliably catch perfect proxy features.
 - Expanded validation with diverse column-type scenarios and semantic expectation checks.
@@ -53,7 +55,7 @@ pip install leakprofiler
 For reproducible environments, pin an exact version:
 
 ```bash
-pip install leakprofiler==1.0.1
+pip install leakprofiler==1.0.2
 ```
 
 ### Option B: Local development install
@@ -170,6 +172,7 @@ Combines independent signals to produce composite findings such as:
 
 - `file_path` *(str, required)*: CSV path.
 - `target_column` *(str, required)*: target column name.
+- Missing target values in `target_column` are auto-dropped; if all target values are missing, LeakProfiler raises a clear `ValueError`.
 - `json_output_path` *(str, optional)*: write JSON to file.
 - `json_stdout` *(bool, optional)*: print JSON to stdout.
 - `return_payload` *(bool, optional)*: return JSON payload as `dict`.
@@ -232,20 +235,20 @@ python -m twine check dist/*
 ### TestPyPI
 
 ```bash
-python -m twine upload --repository testpypi dist/leakprofiler-1.0.1*
+python -m twine upload --repository testpypi dist/leakprofiler-1.0.2*
 ```
 
 ### PyPI
 
 ```bash
-python -m twine upload dist/leakprofiler-1.0.1*
+python -m twine upload dist/leakprofiler-1.0.2*
 ```
 
 ### Tag suggestion
 
 ```bash
-git tag -a v1.0.1 -m "LeakProfiler 1.0.1 stable"
-git push origin v1.0.1
+git tag -a v1.0.2 -m "LeakProfiler 1.0.2 stable"
+git push origin v1.0.2
 ```
 
 ---

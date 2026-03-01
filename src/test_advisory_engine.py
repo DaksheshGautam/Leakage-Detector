@@ -1,3 +1,6 @@
+import contextlib
+import io
+
 import pandas as pd
 
 from LeakProfiler import (
@@ -9,6 +12,7 @@ from LeakProfiler import (
     determine_splitting_strategy,
     estimate_finding_confidence,
     estimate_risk_profile,
+    run_leakprofiler,
 )
 
 
@@ -205,3 +209,39 @@ def test_detect_high_correlation_catches_perfect_proxy():
 
     assert finding is not None
     assert "proxy_target" in finding.evidence
+
+
+def test_run_leakprofiler_drops_missing_target_rows(tmp_path):
+    df = pd.DataFrame(
+        {
+            "feature_a": [0.2, 0.3, 0.4, 0.5],
+            "feature_b": [1, 0, 1, 0],
+            "target": [1, 0, None, 1],
+        }
+    )
+    csv_path = tmp_path / "missing_target.csv"
+    df.to_csv(csv_path, index=False)
+
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        payload = run_leakprofiler(str(csv_path), target_column="target", return_payload=True)
+
+    assert payload is not None
+    assert any("Dropped 1 row(s) with missing target values" in tip for tip in payload.get("dataset_tips", []))
+
+
+def test_run_leakprofiler_raises_when_target_all_missing(tmp_path):
+    df = pd.DataFrame(
+        {
+            "feature_a": [0.2, 0.3, 0.4],
+            "target": [None, None, None],
+        }
+    )
+    csv_path = tmp_path / "all_missing_target.csv"
+    df.to_csv(csv_path, index=False)
+
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        try:
+            run_leakprofiler(str(csv_path), target_column="target", return_payload=True)
+            assert False, "Expected ValueError for all-missing target"
+        except ValueError as exc:
+            assert "contains only missing values" in str(exc)

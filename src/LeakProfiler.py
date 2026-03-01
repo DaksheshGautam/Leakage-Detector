@@ -1,4 +1,4 @@
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 FUNC_NAME = "LeakProfiler"
 
 ADVISORY_CONFIG = {
@@ -68,16 +68,29 @@ def run_leakprofiler(
     export_button_path="leakprofiler_report.json"
 ):
     findings = []
+    dropped_target_rows_message = None
 
     header_df = pd.read_csv(file_path, nrows=0)
     parse_date_cols = ['timestamp'] if 'timestamp' in header_df.columns else []
     df = pd.read_csv(file_path, parse_dates=parse_date_cols)
 
-    confidence = calculate_confidence_score(df, target_column)
-    stability = check_analysis_stability(df)
-
     if target_column not in df.columns:
         raise ValueError(f"Target column '{target_column}' not found in dataset.")
+
+    missing_target_rows = int(df[target_column].isna().sum())
+    if missing_target_rows > 0:
+        df = df.dropna(subset=[target_column]).copy()
+        if df.empty:
+            raise ValueError(
+                f"Target column '{target_column}' contains only missing values. "
+                "Please clean or impute the target column before running LeakProfiler."
+            )
+        dropped_target_rows_message = (
+            f"Dropped {missing_target_rows} row(s) with missing target values in '{target_column}'."
+        )
+
+    confidence = calculate_confidence_score(df, target_column)
+    stability = check_analysis_stability(df)
 
     X = df.drop(columns=[target_column])
     y = df[target_column]
@@ -111,6 +124,9 @@ def run_leakprofiler(
 
     console = Console()
     advice = advisory_logic(findings, df, confidence, stability)
+    if dropped_target_rows_message:
+        advice["dataset_tips"].insert(0, dropped_target_rows_message)
+
     report_renderable = render_report(findings, df.shape)
     advice_renderable = render_advice(advice)
 
