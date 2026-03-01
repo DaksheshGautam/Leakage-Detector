@@ -42,4 +42,6 @@ dev = [
 leakprofiler = "LeakProfiler:main"
 
 [tool.setuptools]
+package-dir = {"" = "src"}
 py-modules = ["LeakProfiler"]
+
