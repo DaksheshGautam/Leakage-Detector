@@ -2,7 +2,7 @@
 
 ![PyPI version](https://img.shields.io/pypi/v/leakprofiler)
 ![Python](https://img.shields.io/pypi/pyversions/leakprofiler)
-![License](https://img.shields.io/github/license/daksheshgautam/LeakProfiler)
+![License](https://img.shields.io/github/license/DaksheshGautam/LeakProfiler)
 
 
 LeakProfiler is a Python package for automated data leakage detection and machine learning validation strategy analysis.
